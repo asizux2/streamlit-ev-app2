@@ -38,3 +38,21 @@ if make_selection:
     st.plotly_chart(fig)
 
 # Additional sections for Electric Range Analysis, Correlation Analysis, etc., can be added here
+import overview  # Importing the overview module
+
+# Function to display the sidebar and handle navigation
+def show_sidebar():
+    page = st.sidebar.selectbox("Choose a page", ["Overview", "Another Page"])
+    if page == "Overview":
+        overview.display()  # Calling the display function from overview.py
+    elif page == "Another Page":
+        st.write("Content for another page.")
+
+# Main function to run the app
+def main():
+    st.sidebar.title("Navigation")
+    show_sidebar()
+
+if __name__ == "__main__":
+    main()
+

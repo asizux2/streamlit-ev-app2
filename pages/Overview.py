@@ -15,7 +15,7 @@ def display():
     # Load data (adjust the file path as needed)
     @st.cache
     def load_data():
-        file_path = r"C:\Users\khes7001\Desktop\DS Data\EV_Deploy\git\streamlit-ev-app\data\Electric_Vehicle_Population_Data.csv"  # Update this path
+        file_path = r"C:\Users\khes7001\Desktop\DS Data\EV_Deploy\git\data\Electric_Vehicle_Population_Data.csv"  # Update this path
         data = pd.read_csv(file_path)
         return data
 
