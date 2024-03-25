@@ -4,3 +4,4 @@ plotly
 streamlit_option_menu
 firebase_admin
 tly.subplots
+altair
