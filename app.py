@@ -4,79 +4,40 @@ import numpy as np
 import plotly.express as px
 
 # Set the Mapbox access token for geographic visualizations
-px.set_mapbox_access_token('YOUR_MAPBOX_ACCESS_TOKEN')
+px.set_mapbox_access_token('sk.eyJ1IjoiZXNsNG1raDRsZWQiLCJhIjoiY2x1NmVnb2plMXpzeDJtbnh4eHNxZWF0dyJ9.q5VUpwvtE5nlw31bg_QHHg')
 
 # Function to load and cache data
 @st.cache
 def load_data():
-    # Update with your actual data path
-    file_path = r"C:\Users\khes7001\Desktop\DS Data\EV_Deploy\git\streamlit-ev-app\data\Electric_Vehicle_Population_Data.csv"
-    df = pd.read_csv(file_path)
+    file_path = r"C:\Users\khes7001\Desktop\DS Data\EV_Deploy\git\streamlit-ev-app\data\Electric_Vehicle_Population_Data.csv"  # Update with your actual data path
+    ev_data = pd.read_csv(file_path)
+
+    # Enriching the dataset with necessary columns and random data
+    necessary_columns = {
+        'Model Year': lambda n: np.random.randint(2000, 2023, n),
+        'Make': lambda n: np.random.choice(['Tesla', 'Nissan', 'Chevrolet', 'Ford', 'BMW'], n),
+        'Electric Range': lambda n: np.random.randint(50, 400, n),
+        'Base MSRP': lambda n: np.random.randint(30000, 120000, n),
+        'Battery Capacity': lambda n: np.random.uniform(20, 100, n).round(2),
+        'State': lambda n: np.random.choice(['CA', 'TX', 'NY', 'FL', 'WA'], n),
+        'Vehicle Location': lambda n: ["POINT ({:.6f} {:.6f})".format(np.random.uniform(-125, -66), np.random.uniform(24, 49)) for _ in range(n)]
+    }
+
+    for column, generator in necessary_columns.items():
+        if column not in data.columns:
+            ev_data[column] = generator(len(ev_data))
     
-    # Simulate additional necessary columns if they don't exist in your CSV
-    for column in ['Model Year', 'Make', 'Electric Range', 'Base MSRP', 'Battery Capacity', 'State', 'Vehicle Location']:
-        if column not in df.columns:
-            df[column] = np.nan  # Placeholder for non-existent columns
-    
+    return ev_data
+
+# Function to extract latitude and longitude from "Vehicle Location"
+def extract_coordinates(df):
+    coords = df['Vehicle Location'].str.extract(r'POINT \(([^ ]+) ([^ ]+)\)')
+    df['Longitude'] = coords[0].astype(float)
+    df['Latitude'] = coords[1].astype(float)
     return df
 
+# Load the data
 df = load_data()
-
-# Convert 'Model Year' to string
-df['Model Year'] = df['Model Year'].astype(str)
-
-# Clean data
-df_cleaned = df.dropna()
-df_cleaned.reset_index(drop=True, inplace=True)
-
-# Vehicle make counts and percentages
-make_counts = df_cleaned['Make'].value_counts()
-make_percentage = (make_counts / make_counts.sum()) * 100
-
-# Bar Chart: Count of Electric Vehicles by Make
-fig_bar = px.bar(make_counts.reset_index(), x='index', y='Make', title='Count of Electric Vehicles by Make')
-fig_bar.update_layout(xaxis_title='Make', yaxis_title='Number of Vehicles', xaxis={'categoryorder':'total descending'})
-st.plotly_chart(fig_bar)
-
-# Pie Chart: Percentage Distribution of Electric Vehicles by Make
-fig_pie = px.pie(make_percentage.reset_index(), names='index', values='Make', title='Percentage Distribution of Electric Vehicles by Make')
-fig_pie.update_traces(textposition='inside', textinfo='percent+label')
-st.plotly_chart(fig_pie)
-
-# Prepare data for mean electric range by make
-df_with_range = df_cleaned[df_cleaned['Electric Range'] > 0]
-make_stats = df_with_range.groupby('Make')['Electric Range'].agg(['mean', 'std', 'min', 'max', 'count']).reset_index()
-
-# Bar Chart: Mean Electric Range by Make
-fig_mean_range = px.bar(make_stats.sort_values('mean', ascending=False), 
-                        x='mean', y='Make', orientation='h', text='mean',
-                        color='Make', title='Mean Electric Range by Make')
-fig_mean_range.update_traces(texttemplate='%{text:.2f}', textposition='inside')
-fig_mean_range.update_layout(xaxis_title='Mean Electric Range', yaxis_title='Make', showlegend=False)
-st.plotly_chart(fig_mean_range)
-
-# Histogram: Distribution of Electric Range
-fig_histogram = px.histogram(df_cleaned, x='Electric Range', title='Distribution of Electric Range')
-st.plotly_chart(fig_histogram)
-
-# Scatter Plot: Base MSRP vs Electric Range
-fig_scatter = px.scatter(df_cleaned, x='Base MSRP', y='Electric Range', color='Make', title='Base MSRP vs Electric Range by Make')
-st.plotly_chart(fig_scatter)
-
-# Box Plot: Electric Range by Make
-fig_box = px.box(df_cleaned, x='Make', y='Electric Range', title='Electric Range by Make')
-st.plotly_chart(fig_box)
-
-# Violin Plot: Electric Range Distribution by Make
-fig_violin = px.violin(df_cleaned, x='Make', y='Electric Range', box=True, title='Electric Range Distribution by Make')
-st.plotly_chart(fig_violin)
-
-# Correlation Matrix using imshow
-corr_matrix = df_cleaned.select_dtypes(include=[np.number]).corr().round(2)
-fig_imshow = px.imshow(corr_matrix, text_auto=True, aspect='auto', title='Correlation Matrix')
-fig_imshow.update_xaxes(side='top')
-st.plotly_chart(fig_imshow)
-
 
 # Data Overview
 st.markdown("## Data Overview")
@@ -142,6 +103,11 @@ else:
     st.error(f"Error: Missing necessary columns for the 3D Line Chart: {', '.join(missing_cols)}.")
 
 
+# 3D Surface Plot: Battery Capacity vs. Electric Range Surface
+# Assuming an aggregated or sampled dataset for surface plotting
+#fig_3d_surface = px.scatter_3d(df, x='Battery Capacity', y='Electric Range', z='Model Year', color='Electric Range', title='Battery Capacity vs. Electric Range Surface')
+#fig_3d_surface.update_traces(type='surface')
+#st.plotly_chart(fig_3d_surface)
 
 # Heatmap: Model Year vs. Make Count
 heatmap_data = df.groupby(['Model Year', 'Make']).size().unstack(fill_value=0)
@@ -156,6 +122,76 @@ st.plotly_chart(fig_contour)
 avg_range_by_state = df.groupby('State')['Electric Range'].mean().reset_index()
 fig_polar = px.line_polar(avg_range_by_state, r='Electric Range', theta='State', line_close=True, title='Polar Chart: Average Electric Range by State')
 st.plotly_chart(fig_polar)
+
+
+
+
+# Display the first few rows and dataset information
+
+display(ev_data.head())
+ev_data.info()
+ev_data['Model Year'] = ev_data['Model Year'].astype(str)
+ev_data_cleaned = ev_data.dropna()
+ev_data_cleaned.reset_index(drop=True, inplace=True)
+ev_data_cleaned.set_index('VIN (1-10)', inplace=True)
+make_counts = ev_data_cleaned['Make'].value_counts()
+total_vehicles = make_counts.sum()
+make_percentage = (make_counts / total_vehicles) * 100
+make_percentage_df = make_percentage.reset_index()
+make_percentage_df.columns = ['Make', 'Percentage']
+make_percentage_df
+make_counts_df = make_counts.reset_index()
+make_counts_df.columns = ['Make', 'Count']
+make_stats = ev_data_cleaned.groupby('Make')['Electric Range'].agg(['mean', 'std', 'min', 'max', 'count'])
+ev_data_with_range = ev_data_cleaned[ev_data_cleaned['Electric Range'] > 0]
+make_stats2 = ev_data_with_range.groupby('Make')['Electric Range'].agg(['mean', 'std', 'min', 'max', 'count'])
+make_stats2
+
+# Create a bar chart
+fig = px.bar(make_counts_df, x='Make', y='Count', title='Count of Electric Vehicles by Make')
+fig.update_layout(xaxis_title='Make', yaxis_title='Number of Vehicles', xaxis={'categoryorder':'total descending'})
+fig.show()
+
+
+
+# Create a pie chart
+fig = px.pie(make_percentage_df, names='Make', values='Percentage', title='Percentage Distribution of Electric Vehicles by Make')
+fig.update_traces(textposition='inside', textinfo='percent+label')
+fig.show()
+make_stats = ev_data_cleaned.groupby('Make')['Electric Range'].agg(['mean', 'std', 'min', 'max', 'count'])
+
+#Mean Electric Range by Make
+fig_height = max(600, 20 * len(make_stats2.index))
+fig_mean = px.bar(make_stats2.sort_values('mean', ascending=False).reset_index(), 
+                  x='mean', y='Make', orientation='h', text='mean',
+                  color='Make', title='Mean Electric Range by Make',
+                  height=fig_height, width=800)
+fig_mean.update_traces(texttemplate='%{text:.2f}', textposition='inside', marker_line_color='rgb(8,48,107)')
+fig_mean.update_layout(xaxis_title='Mean Electric Range', yaxis_title='Make', showlegend=False)
+fig_mean.show()
+
+# Distribution of 'Electric Range' using a histogram
+fig_range = px.histogram(ev_data_cleaned, x='Electric Range', title='Distribution of Electric Range')
+fig_range.show()
+
+# Scatter plot of 'Base MSRP' vs 'Electric Range'
+fig_scatter = px.scatter(ev_data_cleaned, x='Base MSRP', y='Electric Range', color='Make', title='Base MSRP vs Electric Range by Make')
+fig_scatter.show()
+
+# Box plot of 'Electric Range' by 'Make'
+fig_box = px.box(ev_data_cleaned, x='Make', y='Electric Range', title='Electric Range by Make')
+fig_box.show()
+
+# Violin plot of 'Electric Range' by 'Make'
+fig_violin = px.violin(ev_data_cleaned, x='Make', y='Electric Range', box=True, title='Electric Range Distribution by Make')
+fig_violin.show()
+
+#Correlation Matrix using imshow
+corr_matrix = ev_data_cleaned.select_dtypes(include=[np.number]).corr()
+corr_matrix_rounded = corr_matrix.round(2)
+fig_imshow = px.imshow(corr_matrix_rounded, text_auto=True, aspect='auto', title='Correlation Matrix using imshow')
+fig_imshow.update_xaxes(side='top')
+fig_imshow.show()
 
 
 
